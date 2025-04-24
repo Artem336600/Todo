@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание структуры проекта</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Редактор структуры проекта</h1>
+                <p class="app-description">Создавайте, организуйте и сохраняйте структуру вашего проекта с файлами, папками и документацией</p>
+                <div class="user-info">
+                    <span class="username">{{ current_user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="logout-btn">Выйти</a>
+                </div>
+            </div>
+            <div class="header-pattern"></div>
+        </header>
+        
+        <div class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="project-selector">
+                <h2>Выберите проект</h2>
+                <div class="project-actions">
+                    <select id="project-select">
+                        <option value="new">Новый проект</option>
+                        <!-- Здесь будут добавлены существующие проекты -->
+                    </select>
+                    <button id="import-json-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z" fill="currentColor"/>
+                        </svg>
+                        Импорт JSON
+                    </button>
+                    <button id="export-json-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11z" fill="currentColor"/>
+                        </svg>
+                        Экспорт JSON
+                    </button>
+                    <button id="manual-json-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 11H4V8H20V11M4 18V15H20V18H4Z" fill="currentColor"/>
+                        </svg>
+                        Ввести JSON
+                    </button>
+                    <a href="{{ url_for('ai_generator') }}" class="btn-link" title="Создать проект с помощью нейросети">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM13 7H11V11H7V13H11V17H13V13H17V11H13V7Z" fill="currentColor"/>
+                        </svg>
+                        AI Генератор
+                    </a>
+                    <button id="delete-project-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM8 9H16V19H8V9ZM15.5 4L14.5 3H9.5L8.5 4H5V6H19V4H15.5Z" fill="currentColor"/>
+                        </svg>
+                        Удалить проект
+                    </button>
+                    <input type="file" id="json-file-input" accept=".json" style="display: none;" />
+                </div>
+            </div>
+            
+            <div class="project-form">
+                <div class="form-group">
+                    <label for="project-name">Название проекта:</label>
+                    <input type="text" id="project-name" placeholder="Введите название проекта">
+                    <input type="hidden" id="project-id" value="">
+                </div>
+                
+                <div class="structure-header">
+                    <h2>Структура проекта</h2>
+                </div>
+                
+                <div class="tree-view-container">
+                    <div class="tree-options">
+                        <h3>Текстовая структура:</h3>
+                        <button id="copy-tree-btn" onclick="copyTreeToClipboard()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+                            </svg>
+                            Копировать
+                        </button>
+                    </div>
+                    <pre id="tree-output" class="tree-view"></pre>
+                </div>
+                
+                <div id="structure-container" class="structure-container">
+                    <div class="empty-state" id="empty-structure" style="display: none;">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6H12L10 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V8C22 6.9 21.1 6 20 6ZM20 18H4V8H20V18Z" fill="currentColor"/>
+                        </svg>
+                        <p>Эта структура пуста.<br>Добавьте файлы или папки, чтобы начать.</p>
+                    </div>
+                    <!-- Здесь будут добавляться папки и файлы -->
+                </div>
+                
+                <div class="add-buttons">
+                    <button id="add-folder-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6H12L10 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V8C22 6.9 21.1 6 20 6ZM19 11H16V8H14V11H11V13H14V16H16V13H19V11Z" fill="currentColor"/>
+                        </svg>
+                        Добавить папку
+                    </button>
+                    <button id="add-file-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM15 11H9V13H15V11ZM15 15H9V17H15V15Z" fill="currentColor"/>
+                        </svg>
+                        Добавить файл
+                    </button>
+                </div>
+                
+                <div class="actions">
+                    <button id="save-project-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3ZM19 19H5V5H16.17L19 7.83V19ZM12 12C10.34 12 9 13.34 9 15C9 16.66 10.34 18 12 18C13.66 18 15 16.66 15 15C15 13.34 13.66 12 12 12ZM7 9H15V7H7V9Z" fill="currentColor"/>
+                        </svg>
+                        Сохранить структуру
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="status-message"></div>
+    </div>
+    
+    <!-- Шаблон для добавления файла -->
+    <template id="file-template">
+        <div class="file-item" data-type="file" draggable="true">
+            <div class="file-header">
+                <h3>Файл</h3>
+                <div class="item-actions">
+                    <button class="toggle-file-btn btn-icon">▼</button>
+                    <button class="remove-item-btn btn-icon">✖</button>
+                </div>
+            </div>
+            
+            <div class="file-content">
+                <div class="form-group">
+                    <label>Имя файла:</label>
+                    <input type="text" class="file-name" placeholder="Введите имя файла">
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание:</label>
+                    <textarea class="file-description" placeholder="Опишите назначение файла"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Варианты входных и выходных данных:</label>
+                    <div class="mock-container io-pairs">
+                        <div class="mock-pair">
+                            <div class="mock-header">
+                                <div class="mock-header-actions">
+                                    <button type="button" class="remove-pair-btn btn-icon">✖</button>
+                                </div>
+                            </div>
+                            <div class="mock-io-container">
+                                <div class="mock-io-item">
+                                    <label>Вход:</label>
+                                    <textarea class="file-input-mock" placeholder='{ "example": "value" }'></textarea>
+                                </div>
+                                <div class="mock-io-arrow">→</div>
+                                <div class="mock-io-item">
+                                    <label>Выход:</label>
+                                    <textarea class="file-output-mock" placeholder='{ "result": "value" }'></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="add-pair-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z" fill="currentColor"/>
+                        </svg>
+                        Добавить пару "вход-выход"
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    
+    <!-- Шаблон для добавления папки -->
+    <template id="folder-template">
+        <div class="folder-item" data-type="folder" draggable="true">
+            <div class="folder-header">
+                <h3>Папка</h3>
+                <div class="item-actions">
+                    <button class="toggle-folder-btn btn-icon">▼</button>
+                    <button class="remove-item-btn btn-icon">✖</button>
+                </div>
+            </div>
+            
+            <div class="folder-content">
+                <div class="form-group">
+                    <label>Имя папки:</label>
+                    <input type="text" class="folder-name" placeholder="Введите имя папки">
+                </div>
+                
+                <div class="folder-items">
+                    <div class="empty-folder">Эта папка пуста. Добавьте файлы или подпапки.</div>
+                </div>
+                
+                <div class="folder-actions">
+                    <button class="add-folder-in-folder-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6H12L10 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V8C22 6.9 21.1 6 20 6ZM19 11H16V8H14V11H11V13H14V16H16V13H19V11Z" fill="currentColor"/>
+                        </svg>
+                        Добавить подпапку
+                    </button>
+                    <button class="add-file-in-folder-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM15 11H9V13H15V11ZM15 15H9V17H15V15Z" fill="currentColor"/>
+                        </svg>
+                        Добавить файл
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    
+    <!-- Модальное окно для ручного ввода JSON -->
+    <div id="json-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ввод JSON-структуры</h3>
+                <button id="close-modal-btn" class="btn-icon">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Введите структуру проекта в формате JSON:</p>
+                <textarea id="json-input" placeholder='{ "name": "Название проекта", "structure": [ ... ] }'></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="apply-json-btn">Применить</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для редактирования файла -->
+    <div id="file-edit-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="file-edit-title">Редактирование файла</h3>
+                <button id="close-file-edit-modal-btn" class="btn-icon">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Имя файла:</label>
+                    <input type="text" id="modal-file-name" placeholder="Введите имя файла">
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание:</label>
+                    <textarea id="modal-file-description" placeholder="Опишите назначение файла"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Варианты входных и выходных данных:</label>
+                    <div class="mock-container io-pairs" id="modal-io-pairs">
+                        <!-- Сюда будут добавляться пары ввод-вывод -->
+                    </div>
+                    <button type="button" id="modal-add-pair-btn" class="add-pair-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z" fill="currentColor"/>
+                        </svg>
+                        Добавить пару "вход-выход"
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-file-edit-btn">Сохранить</button>
+                <button id="cancel-file-edit-btn">Отмена</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    function copyTreeToClipboard() {
+        const treeOutput = document.getElementById('tree-output');
+        
+        // Преобразуем HTML-дерево в обычный текст
+        const htmlContent = treeOutput.innerHTML;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        
+        // Заменяем HTML-разметку на текст
+        const lines = [];
+        const treeLines = tempDiv.querySelectorAll('.tree-line');
+        
+        treeLines.forEach(line => {
+            // Получаем только текстовое содержимое без HTML
+            let lineText = '';
+            
+            // Обрабатываем все текстовые узлы напрямую, чтобы сохранить отступы и символы
+            for (let i = 0; i < line.childNodes.length; i++) {
+                const node = line.childNodes[i];
+                if (node.nodeType === Node.TEXT_NODE) {
+                    lineText += node.textContent;
+                } else if (node.classList && (node.classList.contains('tree-folder') || node.classList.contains('tree-file'))) {
+                    lineText += node.textContent;
+                }
+                // Игнорируем узлы actions и кнопки
+            }
+            
+            lines.push(lineText.trim());
+        });
+        
+        const cleanText = lines.join('\n');
+        
+        navigator.clipboard.writeText(cleanText).then(() => {
+            const statusMessage = document.getElementById('status-message');
+            statusMessage.textContent = 'Структура скопирована в буфер обмена';
+            statusMessage.className = 'success';
+            statusMessage.classList.add('active');
+            
+            // Автоматическое скрытие сообщения
+            setTimeout(() => {
+                statusMessage.classList.remove('active');
+                
+                // Очистка сообщения после анимации
+                setTimeout(() => {
+                    statusMessage.textContent = '';
+                    statusMessage.className = '';
+                }, 400);
+            }, 5000);
+        }, (err) => {
+            const statusMessage = document.getElementById('status-message');
+            statusMessage.textContent = 'Не удалось скопировать: ' + err;
+            statusMessage.className = 'error';
+            statusMessage.classList.add('active');
+            
+            // Автоматическое скрытие сообщения
+            setTimeout(() => {
+                statusMessage.classList.remove('active');
+                
+                // Очистка сообщения после анимации
+                setTimeout(() => {
+                    statusMessage.textContent = '';
+                    statusMessage.className = '';
+                }, 400);
+            }, 5000);
+        });
+    }
+    </script>
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 
